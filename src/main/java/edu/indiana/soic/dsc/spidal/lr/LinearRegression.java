@@ -8,12 +8,12 @@ import java.io.*;
 public class LinearRegression {
     public static void main(String[] args) throws Exception {
 
-        int NMAX = 1000;
-        int n=0;
-        double []x = new double[NMAX];
-        double []y = new double[NMAX];
 
-        String filename = "regcopy.txt";
+        int n= 1000;
+        double []x = new double[n];
+        double []y = new double[n];
+
+        String filename = "/Users/madhu/Desktop/regcopy.txt";
         FileReader fr = new FileReader(filename);
         BufferedReader br = new BufferedReader(fr);
 
@@ -32,10 +32,10 @@ public class LinearRegression {
 
 
         double sumx = 0.0; double sumy = 0.0; double sumz=0.0;
-        for (n=0; n<NMAX; n++) {
-            sumx  = sumx +  x[n];
-            sumz = sumz + (x[n] * x[n]);
-            sumy  = sumy + y[n];
+        for (i=0; i<n; i++) {
+            sumx  = sumx +  x[i];
+            sumz = sumz + (x[i] * x[i]);
+            sumy  = sumy + y[i];
 
         }
 
