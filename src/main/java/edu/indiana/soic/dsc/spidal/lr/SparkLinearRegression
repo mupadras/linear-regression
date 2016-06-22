@@ -10,6 +10,7 @@ import org.apache.spark.mllib.regression.LinearRegressionWithSGD;
 import org.apache.spark.SparkConf;
 
 public class SparkLinearRegression {
+  
   public static void main(String[] args) {
     SparkConf conf = new SparkConf().setAppName("Linear Regression Example");
     JavaSparkContext sc = new JavaSparkContext(conf);
