@@ -1,0 +1,231 @@
+package edu.indiana.soic.dsc.spidal.lr;
+
+
+import Jama.Matrix;
+import Jama.QRDecomposition;
+
+
+import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
+import com.google.common.primitives.Doubles;
+import mpi.MPI;
+import mpi.MPIException;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.DoubleBuffer;
+import java.nio.IntBuffer;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
+import java.awt.*;
+import static edu.rice.hj.Module0.launchHabaneroApp;
+import static edu.rice.hj.Module1.forallChunked;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
+
+public class MultiVariateLR {
+
+    private final int N;
+    private final int p;
+    private final Matrix alpha;
+    private double SSE;
+    private double SST;
+
+
+    public MultiVariateLR(double[][] x, double[] y) {
+
+        private static DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+        private static Options programOptions = new Options();
+
+        static {
+            programOptions.addOption("n", true, "Number of points");
+            programOptions.addOption("d", true, "Dimensionality");
+            programOptions.addOption("x", true, "Input Features");
+            programOptions.addOption("t", true, "Error threshold");
+            programOptions.addOption("m", true, "Max iteration count");
+            programOptions.addOption("b", true, "Is big-endian?");
+            programOptions.addOption("T", true, "Number of threads");
+            programOptions.addOption("y", true, "Prediction Features");
+            
+        }
+
+
+        int numPoints = Integer.parseInt(cmd.getOptionValue("n"));
+        int numDimensions = Integer.parseInt(cmd.getOptionValue("d"));
+        int numInput = Integer.parseInt(cmd.getOptionValue("x"));
+        int maxIterations = Integer.parseInt(cmd.getOptionValue("m"));
+        double errorThreshold = Double.parseDouble(cmd.getOptionValue("t"));
+        int numThreads = Integer.parseInt(cmd.getOptionValue("T"));
+        boolean isBigEndian = Boolean.parseBoolean(cmd.getOptionValue("b"));
+        String numPrediction = cmd.hasOption("o") ? cmd.getOptionValue("y") : "";
+
+
+        try {
+            ParallelOptions.setupParallelism(args, numPoints, numThreads);
+
+            Stopwatch mainTimer = Stopwatch.createStarted();
+
+            print("=== Program Started on " + dateFormat.format(new Date()) + " ===");
+            print("  Reading points ... ");
+
+            Stopwatch timer = Stopwatch.createStarted();
+            final double[][] points = readPoints(pointsFile, numDimensions, ParallelOptions.globalVecStartIdx,
+                    ParallelOptions.myNumVec, isBigEndian);
+
+            timer.stop();
+            print("    Done in " + timer.elapsed(TimeUnit.MILLISECONDS) + " ms");
+            timer.reset();
+
+            print("  Reading centers ...");
+            timer.start();
+            double[][] weights = readWeights(numInput, numDimensions, isBigEndian);
+            timer.stop();
+            print("    Done in " + timer.elapsed(TimeUnit.MILLISECONDS) + " ms");
+            timer.reset();
+
+            DoubleBuffer doubleBuffer = null;
+            IntBuffer intBuffer = null;
+            IntBuffer intBuffer2 = null;
+            if (ParallelOptions.size > 1) {
+                print("  Allocating buffers");
+                timer.start();
+                doubleBuffer = MPI.newDoubleBuffer(numCenters * numDimensions);
+                intBuffer = MPI.newIntBuffer(numCenters);
+                intBuffer2 = MPI.newIntBuffer(numPoints);
+                timer.stop();
+                // This would be similar across
+                // all processes, so no need to do average
+                print("  Done in " + timer.elapsed(TimeUnit.MILLISECONDS));
+                timer.reset();
+            }
+
+            final double[][][] newInputFeatures = new double[numThreads][numInput][numDimensions];
+            final int[][] pointsPerCenterForThread = new int[numThreads][numInput];
+            final int[] featurePrediction = new int[ParallelOptions.myNumVec];
+
+            resetPointsPerCenter(pointsPerCenterForThread);
+
+
+            int itrCount = 0;
+            boolean converged = false;
+            print("  Computing Linear Regression .. ");
+            Stopwatch loopTimer = Stopwatch.createStarted();
+            Stopwatch commTimerWithCopy = Stopwatch.createUnstarted();
+            Stopwatch commTimer = Stopwatch.createUnstarted();
+            long[] times = new long[]{0, 0, 0};
+            while (!converged && itrCount < maxIterations) {
+                ++itrCount;
+                resetCenterSums(newInputFeatures, numDimensions);
+                resetPointsPerCenter(pointsPerCenterForThread);
+
+                final double[][] finalWeights = weights;
+                for (int i = 0; i < threadLocalMyNumVec; ++i) {
+                    double[] point = points[i + threadLocalVecStartIdx];
+                    if (x.length != y.length) throw new RuntimeException("Dimensions are not compatible");
+                    N = y.length;
+                    p = x[0].length;
+
+                    Matrix X = new Matrix(x);
+                    Matrix Y = new Matrix(y, N);
+
+                    QRDecomposition qr = new QRDecomposition(X);
+                    alpha = qr.solve(Y);
+
+                    double sum = 0.0;
+                    for (int i = 0; i < N; i++)
+                        sum += y[i];
+                    double mean = sum / N;
+
+
+                    for (int i = 0; i < N; i++) {
+                        double dev = y[i] - mean;
+                        SST += dev * dev;
+                    }
+
+                    Matrix residuals = X.times(alpha).minus(Y);
+                    SSE = residuals.norm2() * residuals.norm2();
+
+
+                }
+
+            public double alpha ( int j){
+                return alpha.get(j, 0);
+            }
+
+            public double R2 ()
+            {
+                return 1.0 - SSE / SST;
+            }
+
+
+        }
+        
+        public static void main(String[] args) throws Exception {
+
+        int N = 1000;
+        double[][] x = new double[N][N];
+        double[] y = new double[N];
+        String filename = "/Users/madhu/Desktop/regdatawithoutlp.txt";
+        FileReader fr = new FileReader(filename);
+        BufferedReader br = new BufferedReader(fr);
+
+        String line;
+        String[] split;
+
+
+        for (int i = 0; i < N; i++) {
+            while ((line = br.readLine()) != null) {
+                for (int j = 0; j < 10; j++) {
+
+                    split = line.split("\\s+");
+                    x[i][j] = Double.parseDouble((split[j]));
+                    if (j==10)
+                        y[i] = Double.parseDouble(split[10]);
+
+
+                }
+
+            }
+
+
+            MultiVariateLR regression = new MultiVariateLR(x, y);
+            System.out.println(regression.alpha(0) + regression.alpha(1) + "alpha1+" + regression.alpha(2) + "alpha2 " + "(R2 = " + regression.R2() + ")");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
