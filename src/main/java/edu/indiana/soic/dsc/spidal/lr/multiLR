@@ -59,7 +59,7 @@ public class MultiVariateLR {
             programOptions.addOption("b", true, "Is big-endian?");
             programOptions.addOption("T", true, "Number of threads");
             programOptions.addOption("y", true, "Prediction Features");
-            
+
         }
 
 
@@ -113,10 +113,10 @@ public class MultiVariateLR {
             }
 
             final double[][][] newInputFeatures = new double[numThreads][numInput][numDimensions];
-            final int[][] pointsPerCenterForThread = new int[numThreads][numInput];
+            final int[][] WeightsObtained = new int[numThreads][numInput];
             final int[] featurePrediction = new int[ParallelOptions.myNumVec];
 
-            resetPointsPerCenter(pointsPerCenterForThread);
+            resetPointsPerCenter(WeightsObtained);
 
 
             int itrCount = 0;
@@ -129,7 +129,7 @@ public class MultiVariateLR {
             while (!converged && itrCount < maxIterations) {
                 ++itrCount;
                 resetCenterSums(newInputFeatures, numDimensions);
-                resetPointsPerCenter(pointsPerCenterForThread);
+                resetPointsPerCenter(WeightsObtained);
 
                 final double[][] finalWeights = weights;
                 for (int i = 0; i < threadLocalMyNumVec; ++i) {
@@ -170,9 +170,27 @@ public class MultiVariateLR {
                 return 1.0 - SSE / SST;
             }
 
+            loopTimer.stop();
+            times[2] = loopTimer.elapsed(TimeUnit.MILLISECONDS);
+            loopTimer.reset();
+
+            if (ParallelOptions.size > 1) {
+                ParallelOptions.comm.reduce(times, 3, MPI.LONG, MPI.SUM, 0);
+            }
+
+            if (ParallelOptions.rank == 0) {
+                print("  Writing output file ...");
+                timer.start();
+                System.out.println(regression.alpha(0) + regression.alpha(1) + "alpha1+" + regression.alpha(2) + "alpha2 " + "(R2 = " + regression.R2() + ")");
+                timer.stop();
+                print("    Done in " + timer.elapsed(TimeUnit.MILLISECONDS) +
+                        "ms");
+                timer.reset();
+            
+            }
 
         }
-        
+
         public static void main(String[] args) throws Exception {
 
         int N = 1000;
@@ -202,7 +220,7 @@ public class MultiVariateLR {
 
 
             MultiVariateLR regression = new MultiVariateLR(x, y);
-            System.out.println(regression.alpha(0) + regression.alpha(1) + "alpha1+" + regression.alpha(2) + "alpha2 " + "(R2 = " + regression.R2() + ")");
+            //System.out.println(regression.alpha(0) + regression.alpha(1) + "alpha1+" + regression.alpha(2) + "alpha2 " + "(R2 = " + regression.R2() + ")");
         }
     }
 }
